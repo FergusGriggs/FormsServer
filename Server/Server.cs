@@ -15,7 +15,32 @@ namespace Server
         private List<Game> _games;
 
         private List<String> _gameNames;
-        private String _newPlayerInfo;
+
+        private String _newPlayerInfo = "";
+
+        private String _welcomeMessage = "Copyright Fergus Griggs - https://fergusgriggs.co.uk\n\n<00AA00Welcome to the server!>\n\n";
+
+        private String _ruleMessage = "<FF00FFRules>\n\n" +
+            "<FF44001.)> Thou shall not be impolite.\n" +
+            "<FF44002.)> Thou shall not hack.\n" +
+            "<FF44003.)> Thou shall view my youtube channel.\n" +
+            "<FF44004.)> Thou shall subscribe to my youtube channel.\n" +
+            "<FF44005.)> Thou shall comment and like my videos.\n" +
+            "\n";
+
+        private String _commandMessage = "<FF00FFCommands>\n\n" +
+            "<FF4400/pm username message> - Private message\n" +
+            "<FF4400/play username game_name> - Play a game\n" +
+            "<FF4400/accept username> - Accepts a game invitation\n" +
+            "<FF4400/decline username> - Declines a game invitation\n" +
+            "<FF4400/rename new_name> - Renames you\n" +
+            "<FF4400/mute username> - Mutes User\n" +
+            "<FF4400/unmute username> - Unmutes User\n" +
+            "<FF4400/clear> - Clears this box\n" +
+            "<FF4400/rules> - Displays rules\n" +
+            "<FF4400/help> - Displays commands\n" +
+            "<FF4400/users> - Displays connected users\n" +
+            "\n";
 
         private System.IO.MemoryStream _memoryStream;
         private System.Runtime.Serialization.Formatters.Binary.BinaryFormatter _binaryFormatter;
@@ -34,7 +59,7 @@ namespace Server
             _gameNames = new List<String>();
             _gameNames.Add("rps");
 
-            _newPlayerInfo = "Welcome to the server!\n\nRules\n\n1.) Be nice you little shit.\n\nCommands\n\n/pm username message - Private message\n/play username game_name - Play a game\n/rename new_name - Renames you\n/mute username - Mutes User\n/unmute username - Unmutes User\n\nOnline Clients\n\n";
+            _newPlayerInfo = _welcomeMessage + _ruleMessage + _commandMessage;
 
         }
 
@@ -116,9 +141,23 @@ namespace Server
                             for (int i = 0; i < recievers.Count; i++)
                             {
                                 PacketData.ChatMessagePacket sendPacket = new PacketData.ChatMessagePacket(messages[i]);
-                                SendPacket(sendPacket, _clients[i]);
+                                SendPacket(sendPacket, _clients[recievers[i]]);
                             }
                         }
+
+                        if (_clients[client.GetID()].GetShouldTerminate())
+                        {
+                            System.Threading.Thread listenerThread = _clients[client.GetID()]._listenerThread;
+                            _clients.Remove(_clients[client.GetID()]);
+
+                            for (int i = client.GetID(); i < _clients.Count; i++)
+                            {
+                                _clients[i].SetID(_clients[i].GetID() - 1);
+                            }
+
+                            listenerThread.Abort();
+                        }
+
                         break;
                 }
             }
@@ -207,23 +246,11 @@ namespace Server
                     recievers.Add(i);
                     if (i != clientID)
                     {
-                        messages.Add(newName + " has joined the server.");
+                        messages.Add("<AAAA00[" + newName + "]><777700 has joined the server>");
                     }
                     else
                     {
-                        String newPlayerMessage = _newPlayerInfo;
-                        for (int j = 0; j < _clients.Count; j++)
-                        {
-                            if (j != clientID)
-                            {
-                                newPlayerMessage += _clients[j].GetName() + "\n";
-                            }
-                            else
-                            {
-                                newPlayerMessage += _clients[j].GetName() + "(You)";
-                            }
-                        }
-                        newPlayerMessage += "\n";
+                        String newPlayerMessage = _newPlayerInfo + GetCurrentUsers(clientID);
                         messages.Add(newPlayerMessage);
                     }
 
@@ -232,9 +259,27 @@ namespace Server
             }
             else
             {
-                messages.Add("Client '" + previousName + "' is now called '" + newName + "'.");
+                messages.Add("<AAAA00[" + previousName + "]><777700 is now ><AAAA00[" + newName + "]>");
                 return;
             }
+        }
+
+        private String GetCurrentUsers(int clientID)
+        {
+            String _currentUsers = "<FF00FFCurrent Users>\n\n";
+            for (int j = 0; j < _clients.Count; j++)
+            {
+                if (j != clientID)
+                {
+                    _currentUsers += "<AAAA00[" + _clients[j].GetName() + "]>\n";
+                }
+                else
+                {
+                    _currentUsers += "<AAAA00[" + _clients[j].GetName() + "]><777700(You)\n>";
+                }
+            }
+            _currentUsers += "\n";
+            return _currentUsers;
         }
         private void ProcessPlayCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
@@ -242,13 +287,13 @@ namespace Server
             String opponentName = commandParameters[1];
 
             bool foundGame = false;
-            int gameID = -1;
+            int gameType = -1;
             int opponentID = -1;
 
             if (gameName == "rps")
             {
                 foundGame = true;
-                gameID = 0;
+                gameType = 0;
             }
 
             if (foundGame)
@@ -258,7 +303,7 @@ namespace Server
                 if (_clients[clientID].GetName() == opponentName)
                 {
                     recievers.Add(clientID);
-                    messages.Add("You cannot play with yourself.");
+                    messages.Add("<FF4400You cannot play with yourself>");
                     return;
                 }
 
@@ -269,28 +314,28 @@ namespace Server
                         foundUser = true;
                         opponentID = i;
                         recievers.Add(i);
-                        messages.Add(_clients[clientID].GetName() + " has challenged you to a game of " + gameName + ".\nUse /accept " + _clients[clientID].GetName() + " to accept.");
+                        messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700 has challenged you to a game of ><FF00FF[" + gameName + "]>\n<777700Use /accept ><AAAA00[" + _clients[clientID].GetName() + "]><777700 to accept\nUse /decline ><AAAA00[" + _clients[clientID].GetName() + "]><777700 to decline>");
                     }
                 }
 
                 if (foundUser)
                 {
                     recievers.Add(clientID);
-                    messages.Add("You have challenged " + opponentName + " to a game of " + gameName + ".");
-                    _games.Add(new Game(gameID, _clients[clientID], _clients[opponentID]));
+                    messages.Add("<777700You have challenged ><AAAA00[" + opponentName + "]><777700 to a game of ><FF00FF[" +  gameName + "]>");
+                    _games.Add(new Game(gameType, _clients[clientID], _clients[opponentID]));
                     return;
                 }
                 else
                 {
                     recievers.Add(clientID);
-                    messages.Add("That client does not exist.");
+                    messages.Add("<FF4400That client does not exist>");
                     return;
                 }
             }
             else
             {
                 recievers.Add(clientID);
-                messages.Add("That game does not exist.");
+                messages.Add("<FF4400That game does not exist>");
                 return;
             }
         }
@@ -336,33 +381,99 @@ namespace Server
                 {
                     _games[gameID].Start();
                     recievers.Add(clientID);
-                    messages.Add("You have accepted the " + gameName + " challenge from " + _clients[opponentID].GetName() + "!");
+                    messages.Add("<777700You have accepted the ><FF00FF[" + gameName + "]><777700 challenge from ><AAAA00[" + _clients[opponentID].GetName() + "]>");
                     recievers.Add(opponentID);
-                    messages.Add(_clients[clientID].GetName() + " has accepted your " + gameName + " challenge!");
+                    messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700 has accepted your ><FF00FF[" + gameName + "]><777700 challenge>");
                 }
                 else
                 {
                     recievers.Add(clientID);
-                    messages.Add("That client has not invited you.");
+                    messages.Add("<AAAA00[" + _clients[opponentID].GetName() + "]><FF4400 has not invited you>");
                 }
                 return;
             }
             else
             {
                 recievers.Add(clientID);
-                messages.Add("That client does not exist.");
+                messages.Add("<FF4400That client does not exist>");
+                return;
+            }
+        }
+        private void ProcessDeclineCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
+        {
+            String opponentName = commandParameters[0];
+
+            bool foundUser = false;
+            int opponentID = -1;
+
+            for (int j = 0; j < _clients.Count; j++)
+            {
+                if (_clients[j].GetName() == opponentName)
+                {
+                    foundUser = true;
+                    opponentID = j;
+                    break;
+                }
+            }
+
+            if (foundUser)
+            {
+                bool foundGame = false;
+                int gameID = -1;
+                String gameName = "";
+
+                for (int i = 0; i < _games.Count; i++)
+                {
+                    if (_games[i].GetClient1() == _clients[clientID] || _games[i].GetClient2() == _clients[clientID])
+                    {
+
+                        if (_games[i].GetClient1() == _clients[opponentID] || _games[i].GetClient2() == _clients[opponentID])
+                        {
+                            gameID = i;
+                            foundGame = true;
+                            gameName = _gameNames[_games[gameID].GetGameType()];
+                            break;
+                        }
+                    }
+                }
+
+                if (foundGame)
+                {
+                    _games[gameID].Close();
+                    _games.RemoveAt(gameID);
+
+                    recievers.Add(clientID);
+                    messages.Add("<777700You have declined the ><FF00FF[" +  gameName + "]><777700 challenge from ><AAAA00[" + _clients[opponentID].GetName() + "]>");
+                    recievers.Add(opponentID);
+                    messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700 has declined your ><FF00FF[" + gameName + "]><777700 challenge>");
+                }
+                else
+                {
+                    recievers.Add(clientID);
+                    messages.Add("<AAAA00[" + _clients[opponentID].GetName() + "]><FF4400 has not invited you>");
+                }
+                return;
+            }
+            else
+            {
+                recievers.Add(clientID);
+                messages.Add("<FF4400That client does not exist>");
                 return;
             }
         }
         private void ProcessPrivateMessageCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
             String recipientName = commandParameters[0];
-            String message = commandParameters[1];
+            String message = "";
+            for (int i = 1; i < commandParameters.Count; i++)
+            {
+                message += commandParameters[i] + " ";
+            }
 
             if (_clients[clientID].GetName() == recipientName)
             {
                 recievers.Add(clientID);
-                messages.Add("You cannot pm yourself.");
+                messages.Add("<FF4400You cannot pm yourself>");
                 return;
             }
 
@@ -373,20 +484,20 @@ namespace Server
                 {
                     foundUser = true;
                     recievers.Add(i);
-                    messages.Add(_clients[clientID].GetName() + " whispered to you: " + message);
+                    messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700 whispered to you: >" + message);
                 }
             }
 
             if (foundUser)
             {
                 recievers.Add(clientID);
-                messages.Add("You whispered to " + recipientName + ": " + message);
+                messages.Add("<777700You whispered to ><AAAA00[" + recipientName + "]><777700:> " + message);
                 return;
             }
             else
             {
                 recievers.Add(clientID);
-                messages.Add("That client does not exist.");
+                messages.Add("<FF4400That client does not exist>");
                 return;
             }
         }
@@ -394,7 +505,7 @@ namespace Server
         private void ProcessMuteCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
             String userToMute = commandParameters[0];
-            if (userToMute == "*")
+            if (userToMute == "all")
             {
                 for (int i = 0; i < _clients.Count; i++)
                 {
@@ -405,7 +516,7 @@ namespace Server
                 }
 
                 recievers.Add(clientID);
-                messages.Add("You have muted all users. (Why are you even here?)");
+                messages.Add("<777700You have muted all users (Why are you even here?)>");
                 return;
             }
             else
@@ -420,19 +531,19 @@ namespace Server
                         if (_clients[i].GetID() == clientID)
                         {
                             recievers.Add(clientID);
-                            messages.Add("You cannot mute yourself.");
+                            messages.Add("<FF4400You cannot mute yourself>");
                             return;
                         }
                         else if (_clients[clientID].AddMutedClient(_clients[i]))
                         {
                             recievers.Add(clientID);
-                            messages.Add("You muted " + userToMute + ".");
+                            messages.Add("<777700You muted ><AAAA00[" +  userToMute + "]>");
                             return;
                         }
                         else
                         {
                             recievers.Add(clientID);
-                            messages.Add(userToMute + " is already muted.");
+                            messages.Add("<AAAA00[" + userToMute + "]><FF4400 is already muted>");
                             return;
                         }
 
@@ -441,7 +552,7 @@ namespace Server
                 if (!foundUser)
                 {
                     recievers.Add(clientID);
-                    messages.Add("That client does not exist.");
+                    messages.Add("<FF4400That client does not exist>");
                     return;
                 }
             }
@@ -461,7 +572,7 @@ namespace Server
                 }
 
                 recievers.Add(clientID);
-                messages.Add("You have unmuted all users.");
+                messages.Add("<777700You have unmuted all users>");
                 return;
             }
             else
@@ -476,19 +587,19 @@ namespace Server
                         if (_clients[i].GetID() == clientID)
                         {
                             recievers.Add(clientID);
-                            messages.Add("You cannot unmute yourself.");
+                            messages.Add("<FF4400You cannot unmute yourself>");
                             return;
                         }
                         else if (_clients[clientID].RemoveMutedClient(_clients[i]))
                         {
                             recievers.Add(clientID);
-                            messages.Add("You have unmuted " + userToUnmute + ".");
+                            messages.Add("<777700You have unmuted ><AAAA00[" + userToUnmute + "]>");
                             return;
                         }
                         else
                         {
                             recievers.Add(clientID);
-                            messages.Add(userToUnmute + " is not muted.");
+                            messages.Add("<AAAA00[" + userToUnmute + "]><FF4400 is not muted>");
                             return;
                         }
 
@@ -497,10 +608,39 @@ namespace Server
                 if (!foundUser)
                 {
                     recievers.Add(clientID);
-                    messages.Add("That client does not exist.");
+                    messages.Add("<FF4400That client does not exist>");
                     return;
                 }
             }
+        }
+
+        private void ProcessClearCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
+        {
+            SendPacket(new PacketData.ChatMessagePacket("CLEAR"), _clients[clientID]);
+            messages.Add("<777700Window Cleared>");
+            recievers.Add(clientID);
+            return;
+        }
+
+        private void ProcessRulesCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
+        {
+            messages.Add(_ruleMessage);
+            recievers.Add(clientID);
+            return;
+        }
+
+        private void ProcessHelpCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
+        {
+            messages.Add(_commandMessage);
+            recievers.Add(clientID);
+            return;
+        }
+
+        private void ProcessUsersCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
+        {
+            messages.Add(GetCurrentUsers(clientID));
+            recievers.Add(clientID);
+            return;
         }
 
         private void ProcessEndConnectionCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
@@ -508,7 +648,7 @@ namespace Server
             String name = _clients[clientID].GetName();
             SendPacket(new PacketData.ChatMessagePacket("TERMINATE"), _clients[clientID]);
 
-            Console.WriteLine(name + " disconnected.");
+            Console.WriteLine( name + " disconnected.");
 
             for (int i = 0; i < _games.Count; i++)
             {
@@ -520,18 +660,9 @@ namespace Server
                 }
             }
 
-            System.Threading.Thread clientListenerThread = _clients[clientID]._listenerThread;
+            _clients[clientID].SetShouldTerminate(true);
 
-            _clients.Remove(_clients[clientID]);
-
-            for (int i = clientID; i < _clients.Count; i++)
-            {
-                _clients[i].SetID(_clients[i].GetID() - 1);
-            }
-
-            messages.Add(name + " left the server.");
-
-            clientListenerThread.Abort();
+            messages.Add("<AAAA00[" + name + "]><777700 left the server>");
 
             return;
         }
@@ -542,23 +673,19 @@ namespace Server
                 if (rawMessage.Substring(0, 1) == "/")
                 {
                     String commandFull = rawMessage.Substring(1);
-
-                    String commandType = "";
-                    String commandContent = "";
-
-                    for (int i = 0; i < commandFull.Length; i++)
-                    {
-                        if (commandFull[i] == ' ')
-                        {
-                            commandType = commandFull.Substring(0, i);
-                            commandContent = commandFull.Substring(i + 1);
-                            break;
-                        }
-                    }
-
                     List<String> commandParameters = new List<String>();
 
-                    SplitString(commandContent, ref commandParameters);
+                    SplitString(commandFull, ref commandParameters);
+
+                    if (commandParameters.Count == 0)
+                    {
+                        messages.Add("<FF4400No command type given>");
+                        recievers.Add(clientID);
+                        return;
+                    }
+
+                    String commandType = commandParameters[0];
+                    commandParameters.RemoveAt(0);
 
                     if (commandType == "rename")
                     {
@@ -569,11 +696,11 @@ namespace Server
                         }
                         else if (commandParameters.Count == 0)
                         {
-                            messages.Add("No name given. Correct syntax is: /rename new_name");
+                            messages.Add("<FF4400No name given. Correct syntax is: /rename new_name>");
                         }
                         else
                         {
-                            messages.Add("Too many parameters given. Correct syntax is: /rename new_name");
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /rename new_name>");
                         }
                         recievers.Add(clientID);
                         return;
@@ -587,37 +714,33 @@ namespace Server
                         }
                         else if (commandParameters.Count == 0)
                         {
-                            messages.Add("No parameters given. Correct syntax is: /play game_name opponent_name");
+                            messages.Add("<FF4400No parameters given. Correct syntax is: /play game_name opponent_name>");
                         }
                         else if (commandParameters.Count == 1)
                         {
-                            messages.Add("No opponent given. Correct syntax is: /play game_name opponent_name");
+                            messages.Add("<FF4400No opponent given. Correct syntax is: /play game_name opponent_name>");
                         }
                         else
                         {
-                            messages.Add("Too many parameters given. Correct syntax is: /play game_name opponent_name");
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /play game_name opponent_name>");
                         }
                         recievers.Add(clientID);
                         return;
                     }
                     else if (commandType == "pm")
                     {
-                        if (commandParameters.Count == 2)
+                        if (commandParameters.Count > 1)
                         {
                             ProcessPrivateMessageCommand(commandParameters, clientID, ref recievers, ref messages);
                             return;
                         }
                         else if (commandParameters.Count == 0)
                         {
-                            messages.Add("No parameters given. Correct syntax is: /pm recipient_name message");
+                            messages.Add("<FF4400No parameters given. Correct syntax is: /pm recipient_name message>");
                         }
                         else if (commandParameters.Count == 1)
                         {
-                            messages.Add("No message given. Correct syntax is: /pm recipient_name message");
-                        }
-                        else
-                        {
-                            messages.Add("Too many parameters given. Correct syntax is: /pm recipient_name message");
+                            messages.Add("<FF4400No message given. Correct syntax is: /pm recipient_name message>");
                         }
                         recievers.Add(clientID);
                         return;
@@ -631,11 +754,11 @@ namespace Server
                         }
                         else if (commandParameters.Count == 0)
                         {
-                            messages.Add("No name given. Correct syntax is: /mute username");
+                            messages.Add("<FF4400No name given. Correct syntax is: /mute username>");
                         }
                         else
                         {
-                            messages.Add("Too many parameters given. Correct syntax is: /mute username");
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /mute username>");
                         }
                         recievers.Add(clientID);
                         return;
@@ -649,11 +772,11 @@ namespace Server
                         }
                         else if (commandParameters.Count == 0)
                         {
-                            messages.Add("No name given. Correct syntax is: /unmute username");
+                            messages.Add("<FF4400No name given. Correct syntax is: /unmute username>");
                         }
                         else
                         {
-                            messages.Add("Too many parameters given. Correct syntax is: /unmute username");
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /unmute username>");
                         }
                         recievers.Add(clientID);
                         return;
@@ -667,17 +790,96 @@ namespace Server
                         }
                         else if (commandParameters.Count == 0)
                         {
-                            messages.Add("No name given. Correct syntax is: /accept username");
+                            messages.Add("<FF4400No name given. Correct syntax is: /accept username>");
                         }
                         else
                         {
-                            messages.Add("Too many parameters given. Correct syntax is: /accept username");
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /accept username>");
                         }
                         recievers.Add(clientID);
                         return;
 
                     }
-                    else if (commandFull == "endconnection")
+                    else if (commandType == "decline")
+                    {
+                        if (commandParameters.Count == 1)
+                        {
+                            ProcessDeclineCommand(commandParameters, clientID, ref recievers, ref messages);
+                            return;
+                        }
+                        else if (commandParameters.Count == 0)
+                        {
+                            messages.Add("<FF4400No name given. Correct syntax is: /decline username>");
+                        }
+                        else
+                        {
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /decline username>");
+                        }
+                        recievers.Add(clientID);
+                        return;
+
+                    }
+                    else if (commandType == "clear")
+                    {
+                        if (commandParameters.Count == 0)
+                        {
+                            ProcessClearCommand(commandParameters, clientID, ref recievers, ref messages);
+                            return;
+                        }
+                        else
+                        {
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /clear>");
+                        }
+                        recievers.Add(clientID);
+                        return;
+
+                    }
+                    else if (commandType == "rules")
+                    {
+                        if (commandParameters.Count == 0)
+                        {
+                            ProcessRulesCommand(commandParameters, clientID, ref recievers, ref messages);
+                            return;
+                        }
+                        else
+                        {
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /clear>");
+                        }
+                        recievers.Add(clientID);
+                        return;
+
+                    }
+                    else if (commandType == "help")
+                    {
+                        if (commandParameters.Count == 0)
+                        {
+                            ProcessHelpCommand(commandParameters, clientID, ref recievers, ref messages);
+                            return;
+                        }
+                        else
+                        {
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /clear>");
+                        }
+                        recievers.Add(clientID);
+                        return;
+
+                    }
+                    else if (commandType == "users")
+                    {
+                        if (commandParameters.Count == 0)
+                        {
+                            ProcessUsersCommand(commandParameters, clientID, ref recievers, ref messages);
+                            return;
+                        }
+                        else
+                        {
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /clear>");
+                        }
+                        recievers.Add(clientID);
+                        return;
+
+                    }
+                    else if (commandType == "endconnection")
                     {
                         ProcessEndConnectionCommand(commandParameters, clientID, ref recievers, ref messages);
                         return;
@@ -685,10 +887,21 @@ namespace Server
                     else
                     {
                         recievers.Add(clientID);
-                        messages.Add("Unknown Command: " + commandFull);
+                        messages.Add("<FF4400Unknown Command: " + commandFull + ">");
                         return;
                     }
                 }
+                //else if (_clients[clientID].GetCurrentGame() != null)
+                //{
+                //    switch (_clients[clientID].GetCurrentGame().GetGameType())
+                //    {
+                //        case 0:
+                //            ProcessGameInputRPS(rawMessage, clientID, ref recievers, ref messages);
+                //            break;
+                            
+                //    }
+                //    return;
+                //}
                 else
                 {
                     for (int i = 0; i < _clients.Count; i++)
@@ -696,7 +909,7 @@ namespace Server
                         if (!_clients[i].GetMuted(_clients[clientID]))
                         {
                             recievers.Add(i);
-                            messages.Add(_clients[clientID].GetName() + ": " + rawMessage);
+                            messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700:> " + rawMessage);
                         }
                     }
 

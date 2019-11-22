@@ -19,6 +19,7 @@ namespace Server
         private bool _renamedBefore;
         private Game _currentGame;
         private List<Client> _mutedUsers;
+        private bool _shouldTerminate;
 
         public System.Threading.Thread _listenerThread;
 
@@ -122,6 +123,16 @@ namespace Server
                 }
             }
             return false;
+        }
+
+        public bool GetShouldTerminate()
+        {
+            return _shouldTerminate;
+        }
+
+        public void SetShouldTerminate(bool shouldTerminate)
+        {
+            _shouldTerminate = shouldTerminate;
         }
     }
 }

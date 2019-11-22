@@ -46,9 +46,9 @@
             this.button1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.button1.Font = new System.Drawing.Font("Courier New", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.button1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(170)))), ((int)(((byte)(170)))));
-            this.button1.Location = new System.Drawing.Point(687, 511);
+            this.button1.Location = new System.Drawing.Point(687, 579);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(136, 52);
+            this.button1.Size = new System.Drawing.Size(138, 52);
             this.button1.TabIndex = 0;
             this.button1.Text = "Send";
             this.button1.UseVisualStyleBackColor = false;
@@ -60,7 +60,7 @@
             this.messageBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.messageBox.Font = new System.Drawing.Font("Courier New", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.messageBox.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(170)))), ((int)(((byte)(170)))));
-            this.messageBox.Location = new System.Drawing.Point(12, 511);
+            this.messageBox.Location = new System.Drawing.Point(12, 579);
             this.messageBox.Name = "messageBox";
             this.messageBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
             this.messageBox.Size = new System.Drawing.Size(667, 52);
@@ -77,15 +77,16 @@
             // 
             this.chatWindowBox.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(32)))), ((int)(((byte)(32)))), ((int)(((byte)(32)))));
             this.chatWindowBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.chatWindowBox.Font = new System.Drawing.Font("Courier New", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chatWindowBox.Font = new System.Drawing.Font("Courier New", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.chatWindowBox.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(170)))), ((int)(((byte)(170)))), ((int)(((byte)(170)))));
             this.chatWindowBox.Location = new System.Drawing.Point(12, 45);
             this.chatWindowBox.Name = "chatWindowBox";
             this.chatWindowBox.ReadOnly = true;
             this.chatWindowBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
-            this.chatWindowBox.Size = new System.Drawing.Size(813, 459);
+            this.chatWindowBox.Size = new System.Drawing.Size(813, 526);
             this.chatWindowBox.TabIndex = 3;
             this.chatWindowBox.Text = "";
+            this.chatWindowBox.LinkClicked += new System.Windows.Forms.LinkClickedEventHandler(this.chatWindowBox_LinkClicked);
             // 
             // button2
             // 
@@ -127,7 +128,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(48)))), ((int)(((byte)(48)))), ((int)(((byte)(48)))));
-            this.ClientSize = new System.Drawing.Size(835, 574);
+            this.ClientSize = new System.Drawing.Size(835, 643);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.button2);
             this.Controls.Add(this.chatWindowBox);

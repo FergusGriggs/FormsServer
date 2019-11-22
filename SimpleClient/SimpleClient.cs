@@ -179,8 +179,20 @@ namespace SimpleClient
                 switch (rawPacket.type) {
                     case PacketData.PacketType.CHAT_MESSAGE:
                         PacketData.ChatMessagePacket packet = (PacketData.ChatMessagePacket)rawPacket;
-                        if (packet.message == "TERMINATE") _listenerThread.Abort();
-                        _chatWindow.UpdateChatWindow(packet.message);
+                        if (packet.message == "TERMINATE")
+                        {
+                            _listenerThread.Abort();
+                        }
+                        else if (packet.message == "CLEAR")
+                        {
+                            _chatWindow.ClearChatWindow();
+                        }
+
+                        else
+                        {
+                            _chatWindow.UpdateChatWindow(packet.message);
+                        }
+                       
                         break;
                 }
             }

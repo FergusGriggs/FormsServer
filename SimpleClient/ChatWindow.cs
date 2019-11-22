@@ -14,12 +14,20 @@ namespace SimpleClient
     {
         private delegate void UpdateChatWindowDelegate(String message);
         private UpdateChatWindowDelegate _updateChatWindowDelegate;
+
+        private delegate void ClearChatWindowDelegate();
+        private ClearChatWindowDelegate _clearChatWindowDelegate;
+
         private SimpleClient _client;
+        private Color _defaultColour = Color.FromArgb(170, 170, 170);
 
         public ChatWindow(SimpleClient client)
         {
             InitializeComponent();
+
             _updateChatWindowDelegate = new UpdateChatWindowDelegate(UpdateChatWindow);
+            _clearChatWindowDelegate = new ClearChatWindowDelegate(ClearChatWindow);
+
             _client = client;
             if (messageBox.CanSelect) {
                 messageBox.Select();
@@ -33,41 +41,79 @@ namespace SimpleClient
             messageBox.Text = "";
         }
 
+        public static Color GetColourFromHex(String hexstring)
+        {
+            int r = int.Parse(hexstring.Substring(0,2), System.Globalization.NumberStyles.HexNumber);
+            int g = int.Parse(hexstring.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+            int b = int.Parse(hexstring.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
+            return Color.FromArgb(r, g, b);
+        }
+
         public void UpdateChatWindow(String message)
         {
             try
             {
                 if (chatWindowBox.InvokeRequired)
                 {
-                    //Invoke(_updateChatWindowDelegate, new object[] { message });
                     Invoke(_updateChatWindowDelegate, message);
                 }
                 else
                 {
-                    int boundCheck = 11;
-                    if (message.Length < boundCheck)
+                    for (int i = 0; i < message.Length; i++)
                     {
-                        boundCheck = message.Length;
-                    }
-                    int nameLength = 0;
-                    for (int i = 0; i < boundCheck; i++)
-                    {
-                        if (message[i] == ':')
+                        if (message[i] == '<' && i < message.Length - 7)
                         {
-                            nameLength = i;
+                            Color textColour = GetColourFromHex(message.Substring(i + 1, 6));
+
+                            bool foundClose = false;
+
+                            for (int j = i + 7; j < message.Length; j++)
+                            {
+                                if (message[j] == '>')
+                                {
+                                    foundClose = true;
+                                    String ColouredMessage = message.Substring(i + 7, j - (i + 7));
+                                    chatWindowBox.AppendText(ColouredMessage, textColour);
+                                    i = j;
+                                    break;
+                                }
+                            }
+
+                            if (!foundClose)
+                            {
+                                chatWindowBox.AppendText(message.Substring(i, 1), _defaultColour);
+                            }
+                        }
+                        else
+                        {
+                            chatWindowBox.AppendText(message.Substring(i, 1), _defaultColour);
                         }
                     }
 
-                    if (nameLength > 0)
-                    {
-                        chatWindowBox.AppendText("[" + message.Substring(0, nameLength) + "]", Color.FromArgb(170, 170, 0));
-                        chatWindowBox.AppendText(message.Substring(nameLength) + "\n", Color.FromArgb(170, 170, 170));
-                    }
-                    else
-                    {
-                        chatWindowBox.AppendText(message + "\n", Color.FromArgb(170, 170, 170));
-                    }
+                    chatWindowBox.AppendText("\n");
                     
+                    chatWindowBox.SelectionStart = chatWindowBox.Text.Length;
+                    chatWindowBox.ScrollToCaret();
+                }
+            }
+            catch (System.InvalidOperationException e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+
+        public void ClearChatWindow()
+        {
+            try
+            {
+                if (chatWindowBox.InvokeRequired)
+                {
+                    Invoke(_clearChatWindowDelegate);
+                }
+                else
+                {
+                    chatWindowBox.Text = "";
+
                     chatWindowBox.SelectionStart = chatWindowBox.Text.Length;
                     chatWindowBox.ScrollToCaret();
                 }
@@ -105,6 +151,18 @@ namespace SimpleClient
                 _client.Close();
             }
             
+        }
+
+        private void chatWindowBox_LinkClicked(object sender, LinkClickedEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(e.LinkText);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Unable to open link that was clicked.");
+            }
         }
     }
 }
