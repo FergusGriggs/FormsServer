@@ -36,17 +36,23 @@ namespace SimpleClient
 
         private void Button1_Click(object sender, EventArgs e)
         {
-            _client.SendPacket(new PacketData.ChatMessagePacket(messageBox.Text));
+            _client.TCPSendPacket(new PacketData.ChatMessagePacket(messageBox.Text));
             //_client.SendMessage(messageBox.Text);
             messageBox.Text = "";
         }
 
         public static Color GetColourFromHex(String hexstring)
         {
-            int r = int.Parse(hexstring.Substring(0,2), System.Globalization.NumberStyles.HexNumber);
-            int g = int.Parse(hexstring.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
-            int b = int.Parse(hexstring.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
-            return Color.FromArgb(r, g, b);
+            int r, g, b;
+
+            if (int.TryParse(hexstring.Substring(0, 2), System.Globalization.NumberStyles.HexNumber,new System.Globalization.CultureInfo("en-US"), out r) &&
+                int.TryParse(hexstring.Substring(2, 2), System.Globalization.NumberStyles.HexNumber,new System.Globalization.CultureInfo("en-US"), out g) &&
+                int.TryParse(hexstring.Substring(4, 2), System.Globalization.NumberStyles.HexNumber,new System.Globalization.CultureInfo("en-US"), out b)
+                )
+            {
+                return Color.FromArgb(r, g, b);
+            }
+            return Color.White;
         }
 
         public void UpdateChatWindow(String message)
@@ -64,6 +70,12 @@ namespace SimpleClient
                         if (message[i] == '<' && i < message.Length - 7)
                         {
                             Color textColour = GetColourFromHex(message.Substring(i + 1, 6));
+                            
+                            if (textColour == Color.White)
+                            {
+                                chatWindowBox.AppendText(message.Substring(i, 1), _defaultColour);
+                                continue;
+                            }
 
                             bool foundClose = false;
 
@@ -133,8 +145,7 @@ namespace SimpleClient
         {
             if (e.KeyCode == Keys.Enter)
             {
-                _client.SendPacket(new PacketData.ChatMessagePacket(messageBox.Text.Substring(0, messageBox.Text.Length - 1)));
-                //_client.SendMessage(messageBox.Text.Substring(0, messageBox.Text.Length - 1));
+                _client.TCPSendPacket(new PacketData.ChatMessagePacket(messageBox.Text.Substring(0, messageBox.Text.Length - 1)));
                 messageBox.Text = "";
             }
         }

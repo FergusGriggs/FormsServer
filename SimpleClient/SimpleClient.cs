@@ -26,9 +26,6 @@ namespace SimpleClient
         private System.Net.Sockets.TcpClient _tcpClient;
         private System.Net.Sockets.NetworkStream _stream;
 
-        //private System.IO.StreamReader _reader;
-        //private System.IO.StreamWriter _writer;
-
         private System.IO.BinaryReader _binaryReader;
         private System.IO.BinaryWriter _binaryWriter;
 
@@ -51,14 +48,14 @@ namespace SimpleClient
             _memoryStream = new System.IO.MemoryStream();
             _binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
 
-            _connectSucessful = false;
-
             _appRunning = true;
 
             _connected = false;
 
             while (_appRunning)
             {
+                _connectSucessful = false;
+
                 _tcpClient = new System.Net.Sockets.TcpClient();
 
                 _serverConnectForm = new ServerConnect(this);
@@ -80,7 +77,7 @@ namespace SimpleClient
             }
         }
 
-        public void SendPacket(PacketData.Packet packet)
+        public void TCPSendPacket(PacketData.Packet packet)
         {
             _binaryFormatter.Serialize(_memoryStream, packet);
             _memoryStream.Flush();
@@ -92,21 +89,17 @@ namespace SimpleClient
             _binaryWriter.Flush();
         }
 
-        public bool Connect()
+        public bool TCPConnect()
         {
             try
             {
                 _tcpClient.Connect(_IP, _port);
                 _stream = _tcpClient.GetStream();
 
-                //_reader = new System.IO.StreamReader(_stream);
-                //_writer = new System.IO.StreamWriter(_stream);
-
                 _binaryReader = new System.IO.BinaryReader(_stream);
                 _binaryWriter = new System.IO.BinaryWriter(_stream);
 
                 return true;
-
             }
             catch (Exception e)
             {
@@ -118,8 +111,7 @@ namespace SimpleClient
 
         public void StartListener()
         {
-            //SendMessage("/rename " + _name);
-            SendPacket(new PacketData.ChatMessagePacket("/rename " + _name));
+            TCPSendPacket(new PacketData.LogInPacket(_name));
             _listenerThread = new System.Threading.Thread(ListenerProgram);
             _listenerThread.Start();
         }
@@ -131,22 +123,15 @@ namespace SimpleClient
             }
         }
 
-        public void SendMessage(String message)
-        {
-            //_writer.WriteLine(message);
-            //_writer.Flush();
-        }
-
-
         public void Close()
         {
-            SendPacket(new PacketData.ChatMessagePacket("/endconnection"));
-            //SendMessage("/endconnection");
+            TCPSendPacket(new PacketData.Packet(PacketData.PacketType.END_CONNECTION));
 
             while (_listenerThread.IsAlive)
             {
 
             }
+
             FullyClose();
         }
 
@@ -160,9 +145,9 @@ namespace SimpleClient
 
             _stream.Close();
 
-            //_reader.Close();
+            _binaryReader.Close();
 
-            //_writer.Close();
+            _binaryWriter.Close();
         }
 
         private void ProcessServerResponse()
@@ -179,25 +164,16 @@ namespace SimpleClient
                 switch (rawPacket.type) {
                     case PacketData.PacketType.CHAT_MESSAGE:
                         PacketData.ChatMessagePacket packet = (PacketData.ChatMessagePacket)rawPacket;
-                        if (packet.message == "TERMINATE")
-                        {
-                            _listenerThread.Abort();
-                        }
-                        else if (packet.message == "CLEAR")
-                        {
-                            _chatWindow.ClearChatWindow();
-                        }
-
-                        else
-                        {
-                            _chatWindow.UpdateChatWindow(packet.message);
-                        }
-                       
+                        _chatWindow.UpdateChatWindow(packet.message);
+                        break;
+                    case PacketData.PacketType.CLEAR_WINDOW:
+                        _chatWindow.ClearChatWindow();
+                        break;
+                    case PacketData.PacketType.TERMINATE_CLIENT:
+                        _listenerThread.Abort();
                         break;
                 }
             }
-
-            //String messageRecieved = _reader.ReadLine();
         }
 
         public String GetName()
@@ -232,50 +208,5 @@ namespace SimpleClient
         {
             _connectSucessful = connectionSucessful;
         }
-
-        //private string GetGameResult()
-        //{
-        //    switch (_myAnswer)
-        //    {
-        //        case "R":
-        //            switch (_otherPlayerInput)
-        //            {
-        //                case "R":
-        //                    return "DRAW";
-        //                case "P":
-        //                    return "YOU LOSE";
-        //                case "S":
-        //                    return "YOU WIN";
-        //                default:
-        //                    return "Other Player doesn't know how to play...";
-        //            }
-        //        case "P":
-        //            switch (_otherPlayerInput)
-        //            {
-        //                case "R":
-        //                    return "YOU WIN";
-        //                case "P":
-        //                    return "DRAW";
-        //                case "S":
-        //                    return "YOU LOSE";
-        //                default:
-        //                    return "Other Player doesn't know how to play...";
-        //            }
-        //        case "S":
-        //            switch (_otherPlayerInput)
-        //            {
-        //                case "R":
-        //                    return "YOU LOSE";
-        //                case "P":
-        //                    return "YOU WIN";
-        //                case "S":
-        //                    return "DRAW";
-        //                default:
-        //                    return "Other Player doesn't know how to play...";
-        //            }
-        //        default:
-        //            return "Wrong input dummy";
-        //    }
-        //}
     }
 }

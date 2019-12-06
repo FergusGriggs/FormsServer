@@ -8,8 +8,6 @@ namespace Server
     {
         private System.Net.Sockets.Socket _socket;
         private System.Net.Sockets.NetworkStream _stream;
-        //public System.IO.StreamReader _reader;
-        //public System.IO.StreamWriter _writer;
 
         public System.IO.BinaryReader _binaryReader;
         public System.IO.BinaryWriter _binaryWriter;
@@ -29,9 +27,6 @@ namespace Server
             _name = _ID.ToString();
             _socket = socket;
             _stream = new System.Net.Sockets.NetworkStream(_socket);
-
-            //_reader = new System.IO.StreamReader(_stream);
-            //_writer = new System.IO.StreamWriter(_stream);
 
             _binaryReader = new System.IO.BinaryReader(_stream);
             _binaryWriter = new System.IO.BinaryWriter(_stream);

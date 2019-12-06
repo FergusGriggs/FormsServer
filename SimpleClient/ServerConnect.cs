@@ -45,14 +45,14 @@ namespace SimpleClient
                         _client.SetIP(ipBox.Text);
                         _client.SetPort(Int32.Parse(portBox.Text));
 
-                        if (_client.Connect())
+                        if (_client.TCPConnect())
                         {
                             _client.SetConnectionSucessful(true);
                             this.Close();
                         }
                         else
                         {
-                            UpdateErrorLogWindow("Conection Failed.");
+                            UpdateErrorLogWindow("Connection Failed.");
                         }
                     }
                     else

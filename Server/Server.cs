@@ -23,8 +23,8 @@ namespace Server
         private String _ruleMessage = "<FF00FFRules>\n\n" +
             "<FF44001.)> Thou shall not be impolite.\n" +
             "<FF44002.)> Thou shall not hack.\n" +
-            "<FF44003.)> Thou shall view my youtube channel.\n" +
-            "<FF44004.)> Thou shall subscribe to my youtube channel.\n" +
+            "<FF44003.)> Thou shall view my YouTube channel.\n" +
+            "<FF44004.)> Thou shall subscribe to my YouTube channel.\n" +
             "<FF44005.)> Thou shall comment and like my videos.\n" +
             "\n";
 
@@ -116,6 +116,37 @@ namespace Server
 
                 switch (rawPacket.type)
                 {
+                    case PacketData.PacketType.LOGIN:
+                        PacketData.LogInPacket loginPacket = (PacketData.LogInPacket)rawPacket;
+                        Console.WriteLine(loginPacket.username + " connected.");
+
+                        client.SetName(loginPacket.username);
+
+                        for (int i = 0; i < _clients.Count; i++)
+                        {
+                            recievers.Add(i);
+                            if (i != client.GetID())
+                            {
+                                messages.Add("<AAAA00[" + loginPacket.username + "]><777700 has joined the server>");
+                            }
+                            else
+                            {
+                                String newPlayerMessage = _newPlayerInfo + GetCurrentUsers(client.GetID());
+                                messages.Add(newPlayerMessage);
+                            }
+                        }
+
+                        for (int i = 0; i < recievers.Count; i++)
+                        {
+                            PacketData.ChatMessagePacket sendPacket = new PacketData.ChatMessagePacket(messages[i]);
+                            SendPacket(sendPacket, _clients[recievers[i]]);
+                        }
+
+                        break;
+                    case PacketData.PacketType.END_CONNECTION:
+                        List<String> commandParams = new List<String>();
+                        ProcessEndConnectionCommand(commandParams, client.GetID(), ref recievers, ref messages);
+                        break;
                     case PacketData.PacketType.CHAT_MESSAGE:
                         PacketData.ChatMessagePacket packet = (PacketData.ChatMessagePacket)rawPacket;
 
@@ -144,58 +175,22 @@ namespace Server
                                 SendPacket(sendPacket, _clients[recievers[i]]);
                             }
                         }
-
-                        if (_clients[client.GetID()].GetShouldTerminate())
-                        {
-                            System.Threading.Thread listenerThread = _clients[client.GetID()]._listenerThread;
-                            _clients.Remove(_clients[client.GetID()]);
-
-                            for (int i = client.GetID(); i < _clients.Count; i++)
-                            {
-                                _clients[i].SetID(_clients[i].GetID() - 1);
-                            }
-
-                            listenerThread.Abort();
-                        }
-
                         break;
                 }
+
+                if (_clients[client.GetID()].GetShouldTerminate())
+                {
+                    System.Threading.Thread listenerThread = _clients[client.GetID()]._listenerThread;
+                    _clients.Remove(_clients[client.GetID()]);
+
+                    for (int i = client.GetID(); i < _clients.Count; i++)
+                    {
+                        _clients[i].SetID(_clients[i].GetID() - 1);
+                    }
+
+                    listenerThread.Abort();
+                }
             }
-            //while ((recievedMessage = client._reader.ReadLine()) != null)
-            //{
-            //    recievers.Clear();
-            //    messages.Clear();
-
-            //    GetRefinedMessage(recievedMessage, client.GetID(), ref recievers, ref messages);
-
-            //    bool sendToAll = false;
-            //    if (recievers.Count == 0) sendToAll = true;
-
-            //    if (sendToAll)
-            //    {
-            //        String returnMessage = messages[0];
-
-            //        for (int i = 0; i < _clients.Count; i++)
-            //        {
-            //            _clients[i]._writer.WriteLine(returnMessage);
-            //            _clients[i]._writer.Flush();
-            //        }
-            //    }
-            //    else
-            //    {
-            //        for (int i = 0; i < recievers.Count; i++)
-            //        {
-            //            String returnMessage = messages[i];
-
-            //            _clients[recievers[i]]._writer.WriteLine(returnMessage);
-            //            _clients[recievers[i]]._writer.Flush();
-            //        }
-            //    }
-
-
-            //    if (recievedMessage == "end") break;
-            //}
-
             client.Close();
 
         }
@@ -221,6 +216,84 @@ namespace Server
                 substringList.Add(stringToSplit.Substring(stringToSplit.Length - charsSinceSplitChar, charsSinceSplitChar));
             }
         }
+
+        private void ProcessGameInputRPS(String input, int clientID, ref List<int> recievers, ref List<String> messages)
+        {
+            char inputChar = input.ToUpper()[0];
+            if (inputChar == 'R' || inputChar == 'P' || inputChar == 'S')
+            {
+                bool alreadyPlayed = false;
+                bool isClient1 = false;
+                Game clientGame = _clients[clientID].GetCurrentGame();
+                if (clientGame.GetClient1() == _clients[clientID])
+                {
+                    isClient1 = true;
+                    if (!clientGame.GetClient1Inputted())
+                    {
+                        clientGame.SetClient1Input(inputChar.ToString());
+                    }
+                    else
+                    {
+                        alreadyPlayed = true;
+                    }
+                }
+                else
+                {
+                    if (!clientGame.GetClient2Inputted())
+                    {
+                        clientGame.SetClient2Input(inputChar.ToString());
+                    }
+                    else
+                    {
+                        alreadyPlayed = true;
+                    }
+                }
+
+                if (alreadyPlayed)
+                {
+                    recievers.Add(clientID);
+                    messages.Add("You've already played num nutz");
+                }
+                else
+                {
+                    if (clientGame.GetClient1Inputted() && clientGame.GetClient2Inputted())
+                    {
+                        String client1Message = "", client2Message = "";
+
+                        clientGame.GetRPSResult(ref client1Message, ref client2Message);
+
+                        if (isClient1)
+                        {
+                            recievers.Add(clientID);
+                            messages.Add("You played " + inputChar + "\n" + client1Message);
+
+                            recievers.Add(clientGame.GetClient2().GetID());
+                            messages.Add(client2Message);
+                        }
+                        else
+                        {
+                            recievers.Add(clientGame.GetClient1().GetID());
+                            messages.Add(client1Message);
+
+                            recievers.Add(clientID);
+                            messages.Add("You played " + inputChar + "\n" + client2Message);
+                        }
+                        clientGame.NextRound();
+                    }
+                    else
+                    {
+                        recievers.Add(clientID);
+                        messages.Add("You played " + inputChar);
+                    }
+                }
+            }
+            else
+            {
+                recievers.Add(clientID);
+                messages.Add("Invalid Input my dude");
+            }
+        }
+
         private void ProcessRenameCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
             String previousName = _clients[clientID].GetName();
@@ -235,33 +308,9 @@ namespace Server
             }
 
             _clients[clientID].SetName(newName);
-            if (!_clients[clientID].RenamedBefore())
-            {
-                _clients[clientID].Renamed();
 
-                Console.WriteLine(newName + " connected.");
-
-                for (int i = 0; i < _clients.Count; i++)
-                {
-                    recievers.Add(i);
-                    if (i != clientID)
-                    {
-                        messages.Add("<AAAA00[" + newName + "]><777700 has joined the server>");
-                    }
-                    else
-                    {
-                        String newPlayerMessage = _newPlayerInfo + GetCurrentUsers(clientID);
-                        messages.Add(newPlayerMessage);
-                    }
-
-                }
-                return;
-            }
-            else
-            {
-                messages.Add("<AAAA00[" + previousName + "]><777700 is now ><AAAA00[" + newName + "]>");
-                return;
-            }
+            messages.Add("<AAAA00[" + previousName + "]><777700 is now ><AAAA00[" + newName + "]>");
+            return;
         }
 
         private String GetCurrentUsers(int clientID)
@@ -616,7 +665,7 @@ namespace Server
 
         private void ProcessClearCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
-            SendPacket(new PacketData.ChatMessagePacket("CLEAR"), _clients[clientID]);
+            SendPacket(new PacketData.Packet(PacketData.PacketType.CLEAR_WINDOW), _clients[clientID]);
             messages.Add("<777700Window Cleared>");
             recievers.Add(clientID);
             return;
@@ -646,7 +695,7 @@ namespace Server
         private void ProcessEndConnectionCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
             String name = _clients[clientID].GetName();
-            SendPacket(new PacketData.ChatMessagePacket("TERMINATE"), _clients[clientID]);
+            SendPacket(new PacketData.Packet(PacketData.PacketType.TERMINATE_CLIENT), _clients[clientID]);
 
             Console.WriteLine( name + " disconnected.");
 
@@ -879,11 +928,6 @@ namespace Server
                         return;
 
                     }
-                    else if (commandType == "endconnection")
-                    {
-                        ProcessEndConnectionCommand(commandParameters, clientID, ref recievers, ref messages);
-                        return;
-                    }
                     else
                     {
                         recievers.Add(clientID);
@@ -891,17 +935,17 @@ namespace Server
                         return;
                     }
                 }
-                //else if (_clients[clientID].GetCurrentGame() != null)
-                //{
-                //    switch (_clients[clientID].GetCurrentGame().GetGameType())
-                //    {
-                //        case 0:
-                //            ProcessGameInputRPS(rawMessage, clientID, ref recievers, ref messages);
-                //            break;
-                            
-                //    }
-                //    return;
-                //}
+                else if (_clients[clientID].GetCurrentGame() != null)
+                {
+                    switch (_clients[clientID].GetCurrentGame().GetGameType())
+                    {
+                        case 0:
+                            ProcessGameInputRPS(rawMessage, clientID, ref recievers, ref messages);
+                            break;
+
+                    }
+                    return;
+                }
                 else
                 {
                     for (int i = 0; i < _clients.Count; i++)
