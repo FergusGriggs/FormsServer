@@ -21,6 +21,13 @@ namespace SimpleClient
         }
     }
 
+    public enum WindowCloseAction
+    {
+        OPEN_CHAT_WINDOW,
+        OPEN_SERVER_CONNECT,
+        CLOSE_APP
+    }
+
     public class SimpleClient
     {
         private System.Net.Sockets.TcpClient _tcpClient;
@@ -29,40 +36,46 @@ namespace SimpleClient
         private System.IO.BinaryReader _binaryReader;
         private System.IO.BinaryWriter _binaryWriter;
 
-        private System.IO.MemoryStream _memoryStream;
-        private System.Runtime.Serialization.Formatters.Binary.BinaryFormatter _binaryFormatter;
+        //private System.IO.MemoryStream memoryStream;
+        //private System.Runtime.Serialization.Formatters.Binary.BinaryFormatter binaryFormatter;
 
         private System.Threading.Thread _listenerThread;
+        private System.Threading.Thread _gameWindowThread;
+
         private ServerConnect _serverConnectForm;
         private ChatWindow _chatWindow;
+        private GameWindow _gameWindow;
 
         private String _name = "Fergus";
         private String _IP = "127.0.0.1";
         private int _port = 4444;
 
-        private bool _connectSucessful;
-        public bool _appRunning;
+        Random RNG = new Random();
+
         public bool _connected;
+
+        WindowCloseAction windowCloseAction;
+
         public SimpleClient()
         {
-            _memoryStream = new System.IO.MemoryStream();
-            _binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-
-            _appRunning = true;
+            //memoryStream = new System.IO.MemoryStream();
+            //binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
 
             _connected = false;
 
-            while (_appRunning)
+            windowCloseAction = WindowCloseAction.OPEN_SERVER_CONNECT;
+
+            while (true)
             {
-                _connectSucessful = false;
+                if (windowCloseAction == WindowCloseAction.OPEN_SERVER_CONNECT)
+                {
+                    _tcpClient = new System.Net.Sockets.TcpClient();
 
-                _tcpClient = new System.Net.Sockets.TcpClient();
+                    _serverConnectForm = new ServerConnect(this);
 
-                _serverConnectForm = new ServerConnect(this);
-
-                Application.Run(_serverConnectForm);
-
-                if (_connectSucessful)
+                    Application.Run(_serverConnectForm);
+                }
+                else if (windowCloseAction == WindowCloseAction.OPEN_CHAT_WINDOW)
                 {
                     _connected = true;
 
@@ -70,7 +83,7 @@ namespace SimpleClient
 
                     Application.Run(_chatWindow);
                 }
-                else
+                else if (windowCloseAction == WindowCloseAction.CLOSE_APP)
                 {
                     break;
                 }
@@ -79,14 +92,15 @@ namespace SimpleClient
 
         public void TCPSendPacket(PacketData.Packet packet)
         {
-            _binaryFormatter.Serialize(_memoryStream, packet);
-            _memoryStream.Flush();
-            byte[] buffer = _memoryStream.GetBuffer();
-            _memoryStream.SetLength(0);
+            System.IO.MemoryStream memoryStream = new System.IO.MemoryStream();
+            System.Runtime.Serialization.Formatters.Binary.BinaryFormatter binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+            memoryStream.Seek(0, System.IO.SeekOrigin.Begin);
+            memoryStream.Position = 0;
+            binaryFormatter.Serialize(memoryStream, packet);
+            byte[] buffer = memoryStream.GetBuffer();
 
             _binaryWriter.Write(buffer.Length);
             _binaryWriter.Write(buffer);
-            _binaryWriter.Flush();
         }
 
         public bool TCPConnect()
@@ -156,21 +170,35 @@ namespace SimpleClient
             while((numOfIncomingBytes = _binaryReader.ReadInt32()) != 0)
             {
                 byte[] buffer = _binaryReader.ReadBytes(numOfIncomingBytes);
-                _memoryStream.Write(buffer, 0, numOfIncomingBytes);
-                _memoryStream.Position = 0;
-                PacketData.Packet rawPacket = _binaryFormatter.Deserialize(_memoryStream) as PacketData.Packet;
-                _memoryStream.SetLength(0);
+                System.IO.MemoryStream memoryStream = new System.IO.MemoryStream();
+                System.Runtime.Serialization.Formatters.Binary.BinaryFormatter binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                memoryStream.Seek(0, System.IO.SeekOrigin.Begin);
+                memoryStream.Position = 0;
+                memoryStream.Write(buffer, 0, numOfIncomingBytes);
+                memoryStream.Seek(0, System.IO.SeekOrigin.Begin);
+                memoryStream.Position = 0;
+                PacketData.Packet rawPacket = binaryFormatter.Deserialize(memoryStream) as PacketData.Packet;
 
                 switch (rawPacket.type) {
                     case PacketData.PacketType.CHAT_MESSAGE:
-                        PacketData.ChatMessagePacket packet = (PacketData.ChatMessagePacket)rawPacket;
-                        _chatWindow.UpdateChatWindow(packet.message);
+                        PacketData.ChatMessagePacket chatPacket = (PacketData.ChatMessagePacket)rawPacket;
+                        _chatWindow.UpdateChatWindow(chatPacket.message);
                         break;
                     case PacketData.PacketType.CLEAR_WINDOW:
                         _chatWindow.ClearChatWindow();
                         break;
                     case PacketData.PacketType.TERMINATE_CLIENT:
                         _listenerThread.Abort();
+                        break;
+                    case PacketData.PacketType.BOMBERMAN_SERVER_TO_CLIENT:
+                        PacketData.BombermanServerToClientPacket bombermanServerToClientPacket = (PacketData.BombermanServerToClientPacket)rawPacket;
+                        _gameWindow.UpdateOtherPlayerWithPacket(bombermanServerToClientPacket.otherPlayer);
+                        _gameWindow.AddOtherPlayersBombs(bombermanServerToClientPacket.otherPlayerBombs);
+                        break;
+                    case PacketData.PacketType.OPEN_BOMBERMAN_WINDOW:
+                        PacketData.OpenBombermanWindowPacket openBomberManWindowPacket = (PacketData.OpenBombermanWindowPacket)rawPacket;
+                        _gameWindowThread = new System.Threading.Thread(() => RunBombermanGame(openBomberManWindowPacket.isPlayerOne));
+                        _gameWindowThread.Start();
                         break;
                 }
             }
@@ -204,9 +232,24 @@ namespace SimpleClient
             _port = port;
         }
 
-        public void SetConnectionSucessful(bool connectionSucessful)
+        public void SetWindowCloseAction(WindowCloseAction windowCloseAction)
         {
-            _connectSucessful = connectionSucessful;
+            this.windowCloseAction = windowCloseAction;
+        }
+
+        private void RunBombermanGame(bool isPLayerOne)
+        {
+            _gameWindow = new GameWindow(this, isPLayerOne);
+            _gameWindow.Show();
+
+            while (_gameWindow.Visible)
+            {
+                Application.DoEvents();
+
+                _gameWindow.UpdateGame();
+                
+                _gameWindow.Refresh();//Force a repaint
+            }
         }
     }
 }

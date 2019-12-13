@@ -42,8 +42,8 @@ namespace Server
             "<FF4400/users> - Displays connected users\n" +
             "\n";
 
-        private System.IO.MemoryStream _memoryStream;
-        private System.Runtime.Serialization.Formatters.Binary.BinaryFormatter _binaryFormatter;
+        //private System.IO.MemoryStream memoryStream;
+        //private System.Runtime.Serialization.Formatters.Binary.BinaryFormatter binaryFormatter;
 
         public Server(String ipAddress, int port)
         {
@@ -51,13 +51,15 @@ namespace Server
             _address = System.Net.IPAddress.Parse(ipAddress);
             _tcpListener = new System.Net.Sockets.TcpListener(_address, _port);
 
-            _memoryStream = new System.IO.MemoryStream();
-            _binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+            //memoryStream = new System.IO.MemoryStream();
+            //binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
 
             _clients = new List<Client>();
             _games = new List<Game>();
             _gameNames = new List<String>();
+
             _gameNames.Add("rps");
+            _gameNames.Add("bman");
 
             _newPlayerInfo = _welcomeMessage + _ruleMessage + _commandMessage;
 
@@ -65,14 +67,16 @@ namespace Server
 
         public void SendPacket(PacketData.Packet packet, Client client)
         {
-            _memoryStream.SetLength(0);
-            _binaryFormatter.Serialize(_memoryStream, packet);
-            byte[] buffer = _memoryStream.GetBuffer();
-            _memoryStream.SetLength(0);
+            System.IO.MemoryStream memoryStream = new System.IO.MemoryStream();
+            System.Runtime.Serialization.Formatters.Binary.BinaryFormatter binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+            memoryStream.SetLength(0);
+            memoryStream.Seek(0, System.IO.SeekOrigin.Begin);
+            memoryStream.Position = 0;
+            binaryFormatter.Serialize(memoryStream, packet);
+            byte[] buffer = memoryStream.GetBuffer();
 
             client._binaryWriter.Write(buffer.Length);
             client._binaryWriter.Write(buffer);
-            client._binaryWriter.Flush();
         }
 
         public void Start()
@@ -109,10 +113,15 @@ namespace Server
             while ((numOfIncomingBytes = client._binaryReader.ReadInt32()) != 0)
             {
                 byte[] buffer = client._binaryReader.ReadBytes(numOfIncomingBytes);
-                _memoryStream.Write(buffer, 0, numOfIncomingBytes);
-                _memoryStream.Position = 0;
-                PacketData.Packet rawPacket = _binaryFormatter.Deserialize(_memoryStream) as PacketData.Packet;
-                _memoryStream.SetLength(0);
+                System.IO.MemoryStream memoryStream = new System.IO.MemoryStream();
+                System.Runtime.Serialization.Formatters.Binary.BinaryFormatter binaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                memoryStream.Seek(0, System.IO.SeekOrigin.Begin);
+                memoryStream.Position = 0;
+                memoryStream.Write(buffer, 0, numOfIncomingBytes);
+                memoryStream.Position = 0;
+                memoryStream.Seek(0, System.IO.SeekOrigin.Begin);
+                PacketData.Packet rawPacket = binaryFormatter.Deserialize(memoryStream) as PacketData.Packet;
+                memoryStream.SetLength(0);
 
                 switch (rawPacket.type)
                 {
@@ -146,6 +155,19 @@ namespace Server
                     case PacketData.PacketType.END_CONNECTION:
                         List<String> commandParams = new List<String>();
                         ProcessEndConnectionCommand(commandParams, client.GetID(), ref recievers, ref messages);
+                        break;
+                    case PacketData.PacketType.BOMBERMAN_CLIENT_TO_SERVER:
+                        PacketData.BombermanClientToServerPacket bombermanClientToServerPacket = (PacketData.BombermanClientToServerPacket)rawPacket;
+                        if (client.GetCurrentGame().GetClient1() == client)
+                        {
+                            SendPacket(new PacketData.BombermanServerToClientPacket(bombermanClientToServerPacket.bombsPlaced, bombermanClientToServerPacket.player), client.GetCurrentGame().GetClient2());
+                            //SendPacket(new PacketData.BombermanServerToClientPacket(bombermanClientToServerPacket.player), client.GetCurrentGame().GetClient2());
+                        }
+                        else
+                        {
+                            SendPacket(new PacketData.BombermanServerToClientPacket(bombermanClientToServerPacket.bombsPlaced, bombermanClientToServerPacket.player), client.GetCurrentGame().GetClient1());
+                            //SendPacket(new PacketData.BombermanServerToClientPacket(bombermanClientToServerPacket.player), client.GetCurrentGame().GetClient1());
+                        }
                         break;
                     case PacketData.PacketType.CHAT_MESSAGE:
                         PacketData.ChatMessagePacket packet = (PacketData.ChatMessagePacket)rawPacket;
@@ -217,6 +239,20 @@ namespace Server
             }
         }
 
+        private string GetRPSFullName(char RPSChar)
+        {
+            switch (RPSChar)
+            {
+                case 'R':
+                    return "rock";
+                case 'P':
+                    return "paper";
+                case 'S':
+                    return "scissors";
+                default:
+                    return "invalid";
+            }
+        }
         private void ProcessGameInputRPS(String input, int clientID, ref List<int> recievers, ref List<String> messages)
         {
             char inputChar = input.ToUpper()[0];
@@ -265,7 +301,7 @@ namespace Server
                         if (isClient1)
                         {
                             recievers.Add(clientID);
-                            messages.Add("You played " + inputChar + "\n" + client1Message);
+                            messages.Add("<777700You played " + GetRPSFullName(inputChar) + ">\n" + client1Message);
 
                             recievers.Add(clientGame.GetClient2().GetID());
                             messages.Add(client2Message);
@@ -276,14 +312,14 @@ namespace Server
                             messages.Add(client1Message);
 
                             recievers.Add(clientID);
-                            messages.Add("You played " + inputChar + "\n" + client2Message);
+                            messages.Add("<777700You played " + GetRPSFullName(inputChar) + ">\n" + client2Message);
                         }
                         clientGame.NextRound();
                     }
                     else
                     {
                         recievers.Add(clientID);
-                        messages.Add("You played " + inputChar);
+                        messages.Add("<777700You played " + GetRPSFullName(inputChar) + ">");
                     }
                 }
             }
@@ -332,6 +368,19 @@ namespace Server
         }
         private void ProcessPlayCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
+            for (int i = 0; i < _games.Count; i++)
+            {
+                if (_games[i].GetClient1() == _clients[clientID] || _games[i].GetClient2() == _clients[clientID])
+                {
+                    if (_games[i].GetState() == 1)
+                    {
+                        recievers.Add(clientID);
+                        messages.Add("<FF4400You're already in a game. Use /exitgame to leave>");
+                        return;
+                    }
+                }
+            }
+
             String gameName = commandParameters[0];
             String opponentName = commandParameters[1];
 
@@ -343,6 +392,11 @@ namespace Server
             {
                 foundGame = true;
                 gameType = 0;
+            }
+            else if (gameName == "bman")
+            {
+                foundGame = true;
+                gameType = 1;
             }
 
             if (foundGame)
@@ -433,6 +487,12 @@ namespace Server
                     messages.Add("<777700You have accepted the ><FF00FF[" + gameName + "]><777700 challenge from ><AAAA00[" + _clients[opponentID].GetName() + "]>");
                     recievers.Add(opponentID);
                     messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700 has accepted your ><FF00FF[" + gameName + "]><777700 challenge>");
+
+                    if (_games[gameID].GetGameType() == 1)
+                    {
+                        SendPacket(new PacketData.OpenBombermanWindowPacket(true), _clients[clientID]);
+                        SendPacket(new PacketData.OpenBombermanWindowPacket(false), _clients[opponentID]);
+                    }
                 }
                 else
                 {
@@ -692,6 +752,35 @@ namespace Server
             return;
         }
 
+        private void ProcessExitGameCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
+        {
+            for (int i = 0; i < _games.Count; i++)
+            {
+                if (_games[i].GetClient1() == _clients[clientID] || _games[i].GetClient2() == _clients[clientID])
+                {
+                    if (_games[i].GetClient1() == _clients[clientID])
+                    {
+                        messages.Add("<FF4400You have left the game. ><777700You won " + _games[i].GetClient1Score() + " game(s). ><AAAA00[" + _games[i].GetClient2().GetName() + "]><777700 won " + _games[i].GetClient2Score() + " game(s)>");
+                        recievers.Add(_games[i].GetClient1().GetID());
+
+                        messages.Add("<AAAA00[" + _games[i].GetClient1().GetName() + "]><FF4400 has left the game. ><777700You won " + _games[i].GetClient2Score() + " game(s). ><AAAA00[" + _games[i].GetClient1().GetName() + "]><777700 won " + _games[i].GetClient1Score() + " game(s)>");
+                        recievers.Add(_games[i].GetClient2().GetID());
+                    }
+                    else
+                    {
+                        messages.Add("<FF4400You have left the game. ><777700You won " + _games[i].GetClient2Score() + " game(s). ><AAAA00[" + _games[i].GetClient1().GetName() + "]><777700 won " + _games[i].GetClient1Score() + " game(s)>");
+                        recievers.Add(_games[i].GetClient2().GetID());
+
+                        messages.Add("<AAAA00["+_games[i].GetClient2().GetName()+ "]><FF4400 has left the game. ><777700You won " + _games[i].GetClient1Score() + " game(s). ><AAAA00[" + _games[i].GetClient2().GetName() + "]><777700 won " + _games[i].GetClient2Score() + " game(s)>");
+                        recievers.Add(_games[i].GetClient1().GetID());
+                    }
+                    _games[i].Close();
+                    _games.RemoveAt(i);
+                    return;
+                }
+            }
+        }
+
         private void ProcessEndConnectionCommand(List<String> commandParameters, int clientID, ref List<int> recievers, ref List<String> messages)
         {
             String name = _clients[clientID].GetName();
@@ -711,7 +800,12 @@ namespace Server
 
             _clients[clientID].SetShouldTerminate(true);
 
-            messages.Add("<AAAA00[" + name + "]><777700 left the server>");
+            PacketData.ChatMessagePacket sendPacket = new PacketData.ChatMessagePacket("<AAAA00[" + name + "]><777700 left the server>");
+
+            for (int i = 0; i < _clients.Count; i++)
+            {
+                SendPacket(sendPacket, _clients[i]);
+            }
 
             return;
         }
@@ -928,6 +1022,21 @@ namespace Server
                         return;
 
                     }
+                    else if (commandType == "exitgame")
+                    {
+                        if (commandParameters.Count == 0)
+                        {
+                            ProcessExitGameCommand(commandParameters, clientID, ref recievers, ref messages);
+                            return;
+                        }
+                        else
+                        {
+                            messages.Add("<FF4400Too many parameters given. Correct syntax is: /exitgame>");
+                        }
+                        recievers.Add(clientID);
+                        return;
+
+                    }
                     else
                     {
                         recievers.Add(clientID);
@@ -941,24 +1050,20 @@ namespace Server
                     {
                         case 0:
                             ProcessGameInputRPS(rawMessage, clientID, ref recievers, ref messages);
-                            break;
-
+                            return;
                     }
-                    return;
                 }
-                else
+                
+                for (int i = 0; i < _clients.Count; i++)
                 {
-                    for (int i = 0; i < _clients.Count; i++)
+                    if (!_clients[i].GetMuted(_clients[clientID]))
                     {
-                        if (!_clients[i].GetMuted(_clients[clientID]))
-                        {
-                            recievers.Add(i);
-                            messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700:> " + rawMessage);
-                        }
+                        recievers.Add(i);
+                        messages.Add("<AAAA00[" + _clients[clientID].GetName() + "]><777700:> " + rawMessage);
                     }
-
-                    return;
                 }
+
+                return;
             }
             else
             {

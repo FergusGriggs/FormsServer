@@ -33,6 +33,34 @@ namespace SimpleClient
 
         private void connectButton_Click(object sender, EventArgs e)
         {
+            AttemptConnect();
+        }
+
+        public void UpdateErrorLogWindow(String message)
+        {
+            if (errorLogBox.InvokeRequired)
+            {
+                Invoke(_updateErrorLogWindowDelegate, new object[] { message });
+            }
+            else
+            {
+                errorLogBox.Text += message + "\n";
+                errorLogBox.SelectionStart = errorLogBox.Text.Length;
+                errorLogBox.ScrollToCaret();
+            }
+        }
+
+        private void usernameBox_KeyUp(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                usernameBox.Text = usernameBox.Text.Substring(0, usernameBox.Text.Length - 1);
+                AttemptConnect();
+            }
+        }
+
+        private void AttemptConnect()
+        {
             if (usernameBox.Text.Length > 2)
             {
                 if (ipBox.Text.Length > 0)
@@ -47,7 +75,7 @@ namespace SimpleClient
 
                         if (_client.TCPConnect())
                         {
-                            _client.SetConnectionSucessful(true);
+                            _client.SetWindowCloseAction(WindowCloseAction.OPEN_CHAT_WINDOW);
                             this.Close();
                         }
                         else
@@ -71,18 +99,9 @@ namespace SimpleClient
             }
         }
 
-        public void UpdateErrorLogWindow(String message)
+        private void ServerConnect_FormClosed(object sender, FormClosedEventArgs e)
         {
-            if (errorLogBox.InvokeRequired)
-            {
-                Invoke(_updateErrorLogWindowDelegate, new object[] { message });
-            }
-            else
-            {
-                errorLogBox.Text += message + "\n";
-                errorLogBox.SelectionStart = errorLogBox.Text.Length;
-                errorLogBox.ScrollToCaret();
-            }
+            _client.SetWindowCloseAction(WindowCloseAction.CLOSE_APP);
         }
     }
 }

@@ -138,6 +138,7 @@ namespace SimpleClient
 
         private void button2_Click(object sender, EventArgs e)
         {
+            _client.SetWindowCloseAction(WindowCloseAction.OPEN_SERVER_CONNECT);
             _client.Close();
         }
 
@@ -159,6 +160,7 @@ namespace SimpleClient
         {
             if (_client._connected)
             {
+                _client.SetWindowCloseAction(WindowCloseAction.OPEN_SERVER_CONNECT);
                 _client.Close();
             }
             

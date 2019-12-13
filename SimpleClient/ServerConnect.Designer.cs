@@ -67,6 +67,7 @@
             this.usernameBox.TabIndex = 1;
             this.usernameBox.Text = "";
             this.usernameBox.TextChanged += new System.EventHandler(this.richTextBox1_TextChanged);
+            this.usernameBox.KeyUp += new System.Windows.Forms.KeyEventHandler(this.usernameBox_KeyUp);
             // 
             // ipBox
             // 
@@ -166,6 +167,7 @@
             this.Controls.Add(this.connectButton);
             this.Name = "ServerConnect";
             this.Text = "ServerConnect";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.ServerConnect_FormClosed);
             this.ResumeLayout(false);
             this.PerformLayout();
 

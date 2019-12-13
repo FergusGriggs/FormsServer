@@ -54,6 +54,16 @@ namespace Server
             return _client2;
         }
 
+        public int GetClient1Score()
+        {
+            return _clientScore1;
+        }
+
+        public int GetClient2Score()
+        {
+            return _clientScore2;
+        }
+
         public void Close()
         {
             _client1.SetCurrentGame(null);
@@ -103,18 +113,18 @@ namespace Server
                     switch (_clientInput2)
                     {
                         case "R":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played rock. <774400It's a draw!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played rock. <774400It's a draw!> ";
-                            _clientScore1++;
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played rock. ><FF4400It's a draw!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played rock. ><FF4400It's a draw!> ";
                             return;
                         case "P":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played paper. <774400You lose!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played rock. <774400You win!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played paper. ><FF4400You lose!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played rock. ><FF4400You win!> ";
                             _clientScore2++;
                             return;
                         case "S":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played scissors. <774400You win!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played rock. <774400You lose!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played scissors. ><FF4400You win!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played rock. ><FF4400You lose!> ";
+                            _clientScore1++;
                             return;
                         default:
                             return;
@@ -123,17 +133,17 @@ namespace Server
                     switch (_clientInput2)
                     {
                         case "R":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played rock. <774400You win!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played paper. <774400You lose!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played rock. ><FF4400You win!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played paper. ><FF4400You lose!> ";
                             _clientScore1++;
                             return;
                         case "P":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played paper. <774400It's a draw!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played paper. <774400It's a draw!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played paper. ><FF4400It's a draw!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played paper. ><FF4400It's a draw!> ";
                             return;
                         case "S":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played scissors. <774400You lose!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played paper. <774400You win!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played scissors. ><FF4400You lose!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played paper. ><FF4400You win!> ";
                             _clientScore2++;
                             return;
                         default:
@@ -143,18 +153,18 @@ namespace Server
                     switch (_clientInput2)
                     {
                         case "R":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played rock. <774400You lose!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played scissors. <774400You win!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played rock. ><FF4400You lose!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played scissors. ><FF4400You win!> ";
                             _clientScore2++;
                             return;
                         case "P":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played paper. <774400You win!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played scissors. <774400You lose!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played paper. ><FF4400You win!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played scissors. ><FF4400You lose!> ";
                             _clientScore1++;
                             return;
                         case "S":
-                            client1Message = "<AAAA00[" + _client2.GetName() + "]> played scissors. <774400It's a draw!> ";
-                            client2Message = "<AAAA00[" + _client1.GetName() + "]> played scissors. <774400It's a draw!> ";
+                            client1Message = "<AAAA00[" + _client2.GetName() + "]><777700 played scissors. ><FF4400It's a draw!> ";
+                            client2Message = "<AAAA00[" + _client1.GetName() + "]><777700 played scissors. ><FF4400It's a draw!> ";
                             return;
                         default:
                             return;
